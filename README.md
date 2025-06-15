@@ -1,7 +1,9 @@
 Pushing code to git:
 1. Create new repository in Git: Full-Stack-With-Angular-And-Spring-Boot
+
 2. 
 meesa@DESKTOP-O9RGIR5 MINGW64 /c/MJ/Full-Stack-With-Angular-And-Spring-Boot
+
 git config --global user.name manojshivali
 git config --global user.email "manoj25552@gmail.com"
 touch .gitignore
