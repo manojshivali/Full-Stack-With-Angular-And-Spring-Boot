@@ -1,0 +1,71 @@
+<!-- <p>login works!</p> -->
+
+<!-- User Name : <input type="text" name="username" >
+Password  : <input type="password" name="password">
+<button>Login</button> -->
+
+<!-- User Name : <input type="text" name="username" value="{{username}}">
+Password  : <input type="password" name="password" value="{{password}}">
+<button (click)=handleLogin()>Login</button> -->
+
+ <!-- User Name : <input type="text" name="username" [(ngModel)]="username">
+ Password  : <input type="password" name="password" [(ngModel)]="password"> 
+ <button (click)=handleLogin()>Login</button> -->
+
+<!--  
+ User Name : <input type="text" name="username" [(ngModel)]="username">  //Third way of data binding, this is two way data binding
+ Password  : <input type="password" name="password" [(ngModel)]="password"> 
+ User Name: {{username}}  // One way data binding called interpolation, Taking data from component property
+ <button (click)=handleLogin()>Login</button>  //Second way of data binding is event binding, basically binding a event on the view
+ -->
+
+<!-- <small>invalid credencial</small>
+<div>
+    User Name : <input type="text" name="username" [(ngModel)]="username"> 
+    Password  : <input type="password" name="password" [(ngModel)]="password"> 
+    User Name: {{username}}   
+    <button (click)=handleLogin()>Login</button>
+ </div> -->
+
+
+ <!-- <small>{{errorMessage}}</small>   // Interpolation
+<div>
+    User Name : <input type="text" name="username" [(ngModel)]="username"> 
+    Password  : <input type="password" name="password" [(ngModel)]="password"> 
+    User Name: {{username}}   
+    <button (click)=handleLogin()>Login</button>
+ </div> -->
+
+
+ 
+ <!-- <small>{{errorMessage}}</small>   // Interpolation
+<div>
+    User Name : <input type="text" name="username" [(ngModel)]="username"> 
+    Password  : <input type="password" name="password" [(ngModel)]="password"> 
+    User Name: {{username}}   
+    <button (click)=handleLogin()>Login</button>
+ </div> -->
+
+<!-- <H1>Login!</H1>
+
+<div class="container">
+    <small *ngIf='invalidLogin'>{{errorMessage}}</small>   
+    <div>
+        User Name : <input type="text" name="username" [(ngModel)]="username"> 
+        Password  : <input type="password" name="password" [(ngModel)]="password"> 
+        <button (click)=handleLogin()>Login</button>
+    </div>
+ </div> -->
+
+
+
+ <H1>Login!</H1>
+
+<div class="container">
+    <div class="alert alert-warning" *ngIf='invalidLogin'>{{errorMessage}}</div>   
+    <div>
+        User Name : <input type="text" name="username" [(ngModel)]="username"> 
+        Password  : <input type="password" name="password" [(ngModel)]="password"> 
+        <button (click)=handleLogin() class="btn btn-success">Login</button>
+    </div>
+ </div>
