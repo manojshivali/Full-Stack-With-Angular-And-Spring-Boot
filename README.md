@@ -4,15 +4,17 @@ Pushing code to git:
 2. 
 meesa@DESKTOP-O9RGIR5 MINGW64 /c/MJ/Full-Stack-With-Angular-And-Spring-Boot
 
-git config --global user.name manojshivali
-git config --global user.email "manoj25552@gmail.com"
-touch .gitignore
-git init
-git add .
-git commit -m "Full-Stack-With-Angular-And-Spring-Boot"
-git status
-git remote add origin git@github.com:manojshivali/Full-Stack-With-Angular-And-Spring-Boot.git
-git push origin master
+git config --global user.name manojshivali;
+git config --global user.email "manoj25552@gmail.com";
+touch .gitignore;
+git init;
+git add . ;
+git commit -m "Full-Stack-With-Angular-And-Spring-Boot";
+git status;
+git remote add origin git@github.com:manojshivali/Full-Stack-With-Angular-And-Spring-Boot.git;
+git push origin master;
+
+; => New line
 
 **************************************************************************************************************
 **************************************************************************************************************
