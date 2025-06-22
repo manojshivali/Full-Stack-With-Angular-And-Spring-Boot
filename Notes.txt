@@ -653,4 +653,157 @@ Here are a couple of diff examples between previous and current Angular versions
 -  executeHelloWorldServiceWithPathVariable(name) {
 +  executeHelloWorldServiceWithPathVariable(name: string) {
 
-I have used eclipse for java.
+
+*********************************************************************************************************
+I have used Eclipse for java.
+
+Project right click + Run as + Maven build + Goal : clean install
+Build in progress.
+If "Build Path" is not showing when you right-click a project or folder in Eclipse, it usually means one of the following:
+Your Project Is Not Recognized as a Java Project : Right-click the project → Configure → Convert to Java Project
+
+Connecting Angular Frontend to Spring Boot Restful Services:
+
+Reminder - Course Update - Strict Typing of Parameters and Variables
+In recent versions of Angular, strict typing and mandatory initialization is enforced for parameters and variables.
+We request you to understand the changes and follow them in the next lectures!
+All changes listed here - https://github.com/in28minutes/full-stack-with-angular-and-spring-boot/blob/master/00-02-update-2023-02.md
+Here are a couple of diff examples between previous and current Angular versions:
+/frontend/todo/src/app/welcome/welcome.ts
+ export class WelcomeComponent implements OnInit { 
+-  welcomeMessageFromService:string
++  welcomeMessageFromService: string = '' 
+-  handleSuccessfulResponse(response){
++  handleSuccessfulResponse(response: any) { 
+-  handleErrorResponse(error) {
++  handleErrorResponse(error: any) {
+/frontend/todo/src/app/welcome/welcome.ts
+ export class WelcomeComponent implements OnInit { 
+-  welcomeMessageFromService:string
++  welcomeMessageFromService: string = '' 
+-  handleSuccessfulResponse(response){
++  handleSuccessfulResponse(response: any) { 
+-  handleErrorResponse(error) {
++  handleErrorResponse(error: any) {
+/frontend/todo/src/app/service/data/welcome-data.ts
+-  executeHelloWorldServiceWithPathVariable(name) {
++  executeHelloWorldServiceWithPathVariable(name: string) {
+
+ng generate service service/data/welcomeData
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo>ng generate service service/data/welcomeData
+CREATE src/app/service/data/welcome-data.spec.ts (363 bytes)
+CREATE src/app/service/data/welcome-data.ts (142 bytes)
+
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo>
+
+Course Update: add HttpClientModule in app.config.ts
+There are a few small changes to take of in the next step!
+In recent angular versions we need to add HttpClientModule in app.config.ts and use that appConfig in main.ts
+AS_IS
+import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { routes } from './app.routes';
+export const appConfig: ApplicationConfig = {
+providers: [provideZoneChangeDetection({ eventCoalescing: true }), provideRouter(routes)]
+};
+TO_BE
+import { FormsModule } from '@angular/forms';
+import { BrowserModule } from '@angular/platform-browser';
+import { ApplicationConfig, importProvidersFrom } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { routes } from './app.routes';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+export const appConfig: ApplicationConfig = {
+providers: [importProvidersFrom(BrowserModule, FormsModule), provideRouter(routes),
+provideHttpClient(withInterceptorsFromDi())]
+};
+
+
+Add 
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+in src\app\app.config.ts
+If we click "Get Welcome Message", we will get "Observable2" in console. And if we clear network log and again clicking "Get Welcome Message" nothing is happening in Network.
+Actually here, it is working like synchronously, whole brower is getting stucked and waiting for response from backend server (Java).
+So we should call all HTTP services asynchronously. Observable is one of the best approach to implement asynchronous communication.
+Angular makes extensive use of Observable as the interface for most of the asynchronous operation.
+If you want to make an AJAX request using the HTTP module, angular intern makes use of this Observable.
+Check Observable in src\app\service\data\welcome-data.ts and in src\app\welcome\welcome.ts
+
+this.service.executeHelloWorldBeanService().subscribe();//Observable    ==> welcome.ts ==> subscribe() is used for Observable.
+
+If we click "Get Welcome Message" now, we will get error in console like:
+---------------------------------------------------------------------------------------
+Access to XMLHttpRequest at 'http://localhost:8080/hello-world-bean' from origin 'http://localhost:4200' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+
+welcome.ts:40 GET http://localhost:8080/hello-world-bean net::ERR_FAILED 200 (OK) getWelcomeMessage	@welcome.ts:40 WelcomeComponent_Template_button_click_8_listener @welcome.html:9
+
+welcome.ts:40 ERROR HttpErrorResponse {headers: _HttpHeaders, status: 0, statusText: 'Unknown Error', url: 'http://localhost:8080/hello-world-bean', ok: false, …}
+error: ProgressEvent {isTrusted: true, lengthComputable: false, loaded: 0, total: 0, type: 'error', …}
+headers:_HttpHeaders {headers: Map(0), normalizedNames: Map(0), lazyInit: undefined, lazyUpdate: null}
+message: "Http failure response for http://localhost:8080/hello-world-bean: 0 Unknown Error"
+name: "HttpErrorResponse" ok: false status:0 statusText:"Unknown Error" type:undefined url:"http://localhost:8080/hello-world-bean" [[Prototype]]:HttpResponseBase
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+This is the main error:
+blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource
+
+In Network tab, we can see after clear network log: request 200 ok but no response
+
+Here we need to tell spring boot(http://localhost:8080/hello-world-bean) that allow angular app ('http://localhost:4200') to access.
+so we added: @CrossOrigin(origins="http://localhost:4200")   in /restful-web-services/src/main/java/com/mj/rest/webservices/restfulwebservices/helloworld/HelloWorldController.java
+
+Now we will get no error in console and network because we have subscribe to the observable. Now reqeust is getting executed.
+this.service.executeHelloWorldBeanService().subscribe() ==> this is asynchronous call. Means this will not return result.
+So we need to define action here.
+
+Add below in src\app\service\data\welcome-data.ts
+export class HelloWorldBean {
+  constructor(public message: string) { }ng generate service service/data/todoData
+}
+ return this.http.get<HelloWorldBean>('http://localhost:8080/hello-world-bean'); //Here Generics in Java
+Then add below code in src\app\welcome\welcome.ts
+this.service.executeHelloWorldBeanService().subscribe(
+      response => this.handleSuccessfulResponse(response)
+    );
+handleSuccessfulResponse(response: any) {
+    console.log(response);
+    console.log(response.message);
+  }
+=====> here "response.message"  ==> .message is working because of welcome-data.ts changes.
+
+
+
+ng generate service service/data/todoData
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo>ng generate service service/data/todoData
+CREATE src/app/service/data/todo-data.spec.ts (348 bytes)
+CREATE src/app/service/data/todo-data.ts (139 bytes)
+
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo>
+
+
+For Update:
+ng generate component todo --skip-import --standalone
+
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo>ng generate component todo --skip-import --standalone
+CREATE src/app/todo/todo.spec.ts (537 bytes)
+CREATE src/app/todo/todo.ts (188 bytes)
+CREATE src/app/todo/todo.css (0 bytes)
+CREATE src/app/todo/todo.html (20 bytes)
+
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo>
+
+Update: src\app\app.routes.ts
+import { TodoComponent } from './todo/todo';
+{ path: 'todos/:id', component: TodoComponent, canActivate:[RouteGuardService] },
+
+Route to specific screen on update click: src\app\list-todos\list-todos.ts
+
+constructor(
+    private todoService: TodoDataService,  //Injecting TodaDataService
+    private router: Router   //Route to specific screen, Dependency Injection
+  ) { }
+
+updateTodo(id: number) {
+    console.log(`update todo ${id}`)
+    this.router.navigate(['todos', id])   //Route to specific screen.  ==> Name of the route
+  }
+
