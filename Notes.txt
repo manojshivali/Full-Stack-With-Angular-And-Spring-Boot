@@ -807,3 +807,437 @@ updateTodo(id: number) {
     this.router.navigate(['todos', id])   //Route to specific screen.  ==> Name of the route
   }
 
+
+
+Implementing Basic Authentication with Spring Boot and Spring Security:
+=======================================================================
+We need to pass userid and password. But it is not safe, if somebody gets userid and password they can do anything with it. 
+That's where we create a temporary token called JWT (Jason Web Token).
+Basic security vs JWT 
+How JWT is more secure.
+We need to add below dependency:
+        <dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		
+If we run : http://localhost:8080/users/mj/todos/1
+then browser will take you to the login page. This is login form so this is form based authentication.
+defualt user name : user
+password you can take it from console.
+
+Once you entered the userId and password, a session cookei is set with form-based authentication.
+There is a session for you which is created on server side and a cookie is now registered in your browser. That cookie is sent along with every request.
+As long as i am in the same browser and keep opening tabs, all the requests would continue succeeding. This is what is called form based authentication.
+
+We can use Basic Authentication (by providing username and password in REST client: Restlet client ). It's a kind of header details. This is Basic Authentication.
+
+We can use below properties in application.properties to override generated password/default user
+spring.security.user.name=in28minutes
+spring.security.user.password=dummy
+
+Now if we clicked in UI(call to backend) then we will get below error because of backend authentication.
+Access to XMLHttpRequest at 'http://localhost:8080/hello-world/path-variable/mj%20singh' from origin 'http://localhost:4200' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+
+Here we did not supply the basic authentication details along with our request.
+
+Along with the request, we would want to send the basic authentication hearders here.
+src\app\service\data\welcome-data.ts
+ createBasicAuthenticationHttpHeader() {
+    let username = 'mjsingh'
+    let password = 'mjsingh'
+    let basicAuthHeaderString = 'Basic ' + window.btoa(username + ':' + password); //window.btoa ==> encoding to Window Base64
+    return basicAuthHeaderString;
+  }
+  
+  
+
+  executeHelloWorldServiceWithPathVariable(name: string) {
+
+    let basicAuthHeaderString = this.createBasicAuthenticationHttpHeader();
+    let headers = new HttpHeaders({
+        Authorization: basicAuthHeaderString
+      })
+
+    return this.http.get<HelloWorldBean>(
+      `http://localhost:8080/hello-world/path-variable/${name}`, {headers}
+    );   
+  }
+
+Now, we are getting below error.
+Access to XMLHttpRequest at 'http://localhost:8080/hello-world/path-variable/mj%20singh' from origin 'http://localhost:4200' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+Click on Network->Name->Headers
+Request URL: http://localhost:8080/hello-world/path-variable/mj%20singh
+Request Method: OPTIONS             *************************** <====== *************************
+Status Code: 401 Unauthorized
+Referrer Policy: strict-origin-when-cross-origin
+
+As soon as we added basic authentication (some kind of authentication), before making http call there is something called options check which is done. This options check is failing right now.
+
+
+
+If we hit request to backend through Talend API Tester (Rest Client), but this is failing from frontend.
+Because Spring Security authenticate every request.
+From front end when you are sending authorization header, first sends something called an options request. And that options request is being denied by Spring Security.
+Now we need to configure Spring security to allow options request. For all URL's we would want to automatically allow options request.
+
+Request you to bookmark this page. We will make use of it in the next lecture - https://github.com/in28minutes/full-stack-with-angular-and-spring-boot/blob/master/99-reuse/01-spring-security.md
+
+Add below code:
+/restful-web-services/src/main/java/com/mj/rest/webservices/restfulwebservices/basic/auth/SpringSecurityConfigurationBasicAuth.java
+
+A lot of things can go wrong and all of them result in just one exception (Access to XMLHttpRequest at 'URL' from origin 'http://localhost:4200' has been blocked by CORS policy).
+Debugging it is NOT easy. However, we wanted to make it easy for you.
+Here is a debugging guide to help you - https://github.com/in28minutes/in28minutes-initiatives/blob/master/The-in28Minutes-TroubleshootingGuide-And-FAQ/fullstack.md#basic-authentication-problems
+
+Add below in /restful-web-services/src/main/resources/application.properties:
+spring.security.user.name=mjsingh
+spring.security.user.password=mjsingh
+
+Now UI and REST call will properly work.
+Click on Get Welcome Message, output will come.
+
+But we need this implementation in all component, so HTTP interceptors allow us to do.
+This(HTTP interceptors) will enable us to add a specific request header to every request.
+
+ng generate service service/http/HttpIntercepterBasicAuth 
+
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo>ng generate service service/http/HttpIntercepterBasicAuth
+CREATE src/app/service/http/http-intercepter-basic-auth.spec.ts (430 bytes)
+CREATE src/app/service/http/http-intercepter-basic-auth.ts (155 bytes)
+
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo>
+
+HttpIntercepterBasicAuth is implementing HttpInterceptor
+In this HttpInterceptor we are adding the basic authentication header on top of original request.
+
+Added below code in src\app\service\http\http-intercepter-basic-auth.ts:
+export class HttpIntercepterBasicAuth implements HttpInterceptor{
+  constructor() { }
+  intercept(request: HttpRequest<any>, next: HttpHandler){
+     let username = 'mjsingh'
+     let password = 'mjsingh'
+     let basicAuthHeaderString = 'Basic ' + window.btoa(username + ':' + password);
+      request = request.clone({
+        setHeaders : {
+            Authorization : basicAuthHeaderString
+          }
+        }) 
+    return next.handle(request);
+  }
+}
+
+
+Course Update: Adding HttpInterceptor
+We have to add HttpInterceptor in app.config.ts file:
+import { FormsModule } from '@angular/forms';
+import { BrowserModule } from '@angular/platform-browser';
+import { ApplicationConfig, importProvidersFrom } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { routes } from './app.routes';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'; // IMPORT
+import { HttpIntercepterBasicAuthService } from './service/http/http-intercepter-basic-auth.service'; // IMPORT
+export const appConfig: ApplicationConfig = {
+providers: [importProvidersFrom(BrowserModule, FormsModule), provideRouter(routes),
+{ provide: HTTP_INTERCEPTORS, useClass: HttpIntercepterBasicAuthService, multi: true }, // ADD THIS
+provideHttpClient(withInterceptorsFromDi())]
+};
+
+Now if we click "Todos", it is coming back properly.
+http://localhost:4200/todos
+
+Update/Delete/Add are also working fine.
+
+"Get Welcome Message" is also working fine.
+
+This Basic Authentication is hard coded in Frontend.
+
+Basic Login Authentication is also hard coded in Frontend. We need to connect with Backend.
+
+Create Basic Authentication RESTful Service in Spring Boot.
+
+Added two classes: 
+a) /restful-web-services/src/main/java/com/mj/rest/webservices/restfulwebservices/basic/auth/AuthenticationBean.java
+b) /restful-web-services/src/main/java/com/mj/rest/webservices/restfulwebservices/basic/auth/BasicAuthenticationController.java
+
+We need to update
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo\src\app\service\hardcoded-authentication.ts
+copy paste "hardcoded-authentication.ts" in same folder location.
+Rename as basic-authentication.service.ts
+C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo\src\app\service\basic-authentication.service.ts
+Rename class as BasicAuthenticationService
+
+We have added below code:
+export class BasicAuthenticationService
+ {
+  constructor(private http: HttpClient) { }
+  executeAuthenticationService(username: string, password: string) {
+    let basicAuthHeaderString = 'Basic ' + window.btoa(username + ':' + password); //window.btoa ==> encoding to Window Base64 
+    let headers = new HttpHeaders({
+         Authorization: basicAuthHeaderString
+       }) 
+     return this.http.get<AuthenticationBean>(
+       `http://localhost:8080/basicauth`, {headers}
+     );   
+  } 
+  export class AuthenticationBean {
+  constructor(public message: string) { }
+}
+
+src\app\login\login.ts   ===> //this is synchronous call, it either returns true or false. 
+In case of service call, we would use observable this will be asynchronous call. ==>  `http://localhost:8080/basicauth`, {headers}
+so we would need to define the methods to handle both the success and the failure. 
+    
+	so we define handleBasicAuthLogin in src\app\login\login.ts
+	Inject "private basicAuthenticationService: BasicAuthenticationService"  in constructor.
+
+Now we need to connect handleBasicAuthLogin to Login page.
+  <!-- <button (click)=handleLogin() class="btn btn-success">Login</button> -->
+        <button (click)=handleBasicAuthLogin() class="btn btn-success">Login</button>
+		
+Now in network, we can see basicauth
+
+This is working because whatever header we are setting is getting overridden by the HTTP interceptor which we created.
+We have hard coded userId and password in C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo\src\app\service\http\http-intercepter-basic-auth.ts
+and that's overriding whatever stuff that we have put in. This is something you should always be cautious about. Over here we are we are using hard coded thing and that is what is causing a problem.
+Now what we'll do is let's disable this HTTP interceptor for a little while. We'll enable it a little later while we get to the rest of the stuff.
+
+// { provide: HTTP_INTERCEPTORS, useClass: HttpIntercepterBasicAuth, multi: true },
+
+in C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo\src\app\app.config.ts
+Now login with username = 'mjsingh' password = 'mjsingh'
+Now we are validation username/password with backend.
+
+Now we would create basic authentication token.
+sessionStorage.setItem('token', basicAuthHeaderString);   added in C:\MJ\Full-Stack-With-Angular-And-Spring-Boot\frontend\todo\src\app\service\basic-authentication.service.ts
+
+Now we can login with mjsingh/mjsingh and "Get Welcome Message" will work but "Todos" will not work. Because we have hardcoded the basic authentication in it. It is not really depending on the intercepter yet.
+"Todos" does not work because we have disabled the history interceptor.
+
+We have hard coded below basic header in src\app\service\data\welcome-data.ts before we created http interceptor.
+    let basicAuthHeaderString = this.createBasicAuthenticationHttpHeader();
+    let headers = new HttpHeaders({
+        Authorization: basicAuthHeaderString
+      })
+	  
+	  comment this and header.   //{headers}
+	  
+comment this too:
+createBasicAuthenticationHttpHeader() {
+    let username = 'mjsingh'
+    let password = 'mjsingh'
+    let basicAuthHeaderString = 'Basic ' + window.btoa(username + ':' + password); //window.btoa ==> encoding to Window Base64
+    return basicAuthHeaderString;
+  }
+  
+Now "Get Welcome Message" will not work.
+private basicAuthenticationService : BasicAuthenticationService    added in constructor of src\app\service\http\http-intercepter-basic-auth.ts
+comment this:
+  // let username = 'mjsingh'
+    //  let password = 'mjsingh'
+    //  let basicAuthHeaderString = 'Basic ' + window.btoa(username + ':' + password);
+Added below:
+let basicAuthHeaderString = this.basicAuthenticationService.getAuthenticatedToken();
+    let username = this.basicAuthenticationService.getAuthenticatedUser()
+	
+Now uncomment // { provide: HTTP_INTERCEPTORS, useClass: HttpIntercepterBasicAuth, multi: true }, in src\app\app.config.ts
+All will work now.
+
+Create file : src\app\app.constants.ts
+export const API_URL = "http://localhost:8080"
+
+change below: src\app\service\data\todo-data.ts
+//return this.http.get<Todo[]>(`http://localhost:8080/users/${username}/todos`);
+    return this.http.get<Todo[]>(`${API_URL}/users${username}/todos`);
+	
+JWT (Json Web Token):
+Basic Authentication (we send BASE 64 encoded username and password)=> No Expiration time & No user details
+Custom Token System => These token contains user details, user athorization and any other details.
+JWT ==> Common token standard.
+JWT final token has header, payload and signature. Header contain algorithm for hashing,.
+
+ Configure JWT Authentication
+ 
+ Request you to bookmark this page. We will make use of it in the next lecture - https://github.com/in28minutes/full-stack-with-com.in28minutes.rest.webservices.restfulwebservices.jwtangular-and-spring-boot/blob/master/99-reuse/01-spring-security.md
+ 
+First disable basic authentication in eclipse.
+Rename package: com.mj.rest.webservices.restfulwebservices.basic.auth  as com.mj.rest.basic.auth
+comment below in /restful-web-services/src/main/resources/application.properties
+#spring.security.user.name=mjsingh
+#spring.security.user.password=mjsingh
+
+Add url "jwt.get.token.uri=/authenticate"  in application.properties
+
+Add below dependency in pom.xml
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+        </dependency>
+		
+Copy com.in28minutes.rest.webservices.restfulwebservices.jwt  from https://github.com/in28minutes/full-stack-with-com.in28minutes.rest.webservices.restfulwebservices.jwtangular-and-spring-boot/blob/master/99-reuse/01-spring-security.md
+and paste in src/main/java
+
+my package: com.mj.rest.webservices.restfulwebservices.jwt
+
+I have taken from :https://github.com/in28minutes/full-stack-with-angular-and-spring-boot/tree/master/restful-web-services/src/main/java/com/in28minutes/rest/webservices/restfulwebservices/jwt
+
+I have renamed package com.mj.rest.webservices.restfulwebservices.basic.auth; as package com.mj.rest.basic.auth; ( disabling basic authentication )
+
+Talend API Tester:
+POST Method: http://localhost:8080/authenticate
+Content-Type: application/json
+Origin: http://localhost:4200
+POST Body:
+{
+"username":"mjsingh",
+"password":"mjsingh"
+}
+
+Response:
+{
+"token": "eyJraWQiOiJhNzEwODJhZi0zZjM2LTQwOTMtOTg2My0xODVkOGMxMjg2ZWQiLCJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJzZWxmIiwic3ViIjoibWpzaW5naCIsImV4cCI6MTc1MTEyODU2OSwiaWF0IjoxNzUxMTIzMTY5LCJzY29wZSI6IlJPTEVfVVNFUiJ9.Iyx-GY6DdmCMmzvRya727q_fUMJJBm55lpWIoSZ80VNp9qvwP2cfiknuChnsEvcN5nzDGBP_WfQH55N7qS5fzE7-02IsE3jy9JVn-EoBcF_0_Y8e43F19jnxVMJ5wjtjDkpKeI93Y4wPQsNVkvo2GSc0hcEtt9LNKvL0ZXLFwNHpjKvO25SL1RCliDUPd2MWYmY-fRUvCWflTj-uSId0fG0XQGAYEeQzRn5Zmi9EVeo-kbrwRNvAl6pfEucgON0XXBWn3YCOA8VosLRQHwggViP4hKLTKcZ2agg3Hl5ID6AltoP077VCAxl4oipVxpzB1d4GBDtHwxEkZQoAP9-EVQ"
+}
+
+Now Hit GET request:
+GET: http://localhost:8080/users/mj/todos
+Origin : http://localhost:4200
+Authorization : Bearer eyJraWQiOiI4MGZkZGRjMi0yMjkzLTQzZDMtYmU3Yy02N2JjNzU5MTUzOGUiLCJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJzZWxmIiwic3ViIjoibWpzaW5naCIsImV4cCI6MTc1MTEzMjA3OCwiaWF0IjoxNzUxMTI2Njc4LCJzY29wZSI6IlJPTEVfVVNFUiJ9.NP7xxpXF9_hgcduR6YhLj3HXQo8TO4VPtebu7rdr91B7lVwzryd7-Fq8xKRkcAImaR13FNj3tiQ_jV6ygYrPYQ4Bvm1gvSkcoMcRI2Yf_HQLK8BqL840Lw1_QCKX_i0e35nruN1ozk8fVEv8oDYuIu4nHacuOXdlCEsjbRYZZNi-2WzYDQVeIDB4oa4vM-evFvKVX7UQm3OJekNNPbWeAD8P8kdu0cevNMm7ywG1HVh-6hKnhRT085uF4FSdBWHjtRX62u4wZ5FAIVAXlLjwHvYofEsgIjxy6p8tynF2J_FqzIYjpfNFHceCDDQrK_Z3WGYA4moeu2b5sc5D18S10w
+              : Bearer <token>
+			  
+We will get response.
+
+In the next lecture, we connect the frontend app to the REST API with JWT.
+A lot of things can go wrong.
+Debugging it is NOT easy.
+However, we wanted to make it easy for you.
+Here is a debugging guide to help you - https://github.com/in28minutes/in28minutes-initiatives/blob/master/The-in28Minutes-TroubleshootingGuide-And-FAQ/fullstack.md#jwt-authentication-problems
+      
+Now if we login in frontend. mjsingh/mjsingh
+It will show Invalid Credentials because we have disabled basic authentication.
+Now we are using JWT token based authentication.
+
+I have added below code in src\app\service\basic-authentication.service.ts
+executeJWTAuthenticationService(username: string, password: string) {
+    return this.http.post<any>(
+      `${API_URL}/authenticate`, {
+      username,
+      password
+    }).pipe(
+      map(
+        data => {
+          sessionStorage.setItem(AUTHENTICATED_USER, username);
+          sessionStorage.setItem(TOKEN, `Bearer ${data.token}`);
+          return data;
+        }
+      )
+    );
+    //console.log("Execute Hello World Bean Service")
+  }
+ 
+ 
+Added below code in src\app\login\login.html
+  <!-- <button (click)=handleLogin() class="btn btn-success">Login</button> -->
+        <!-- <button (click)=handleBasicAuthLogin() class="btn btn-success">Login</button> -->
+        <button (click)=handleJWTAuthLogin() class="btn btn-success">Login</button>
+		
+Added below code in src\app\login\login.ts
+handleJWTAuthLogin() {
+    this.basicAuthenticationService.executeJWTAuthenticationService(this.username, this.password)
+        .subscribe(
+          data => {
+            console.log(data)
+            this.router.navigate(['welcome', this.username])
+            this.invalidLogin = false
+          },
+          error => {
+            console.log(error)
+            this.invalidLogin = true
+          }
+        )
+  }
+  
+Now login will work as mjsingh/mjsingh
+
+COURSE UPDATE : H2 Database URL
+1) H2 database name is randomly generated each time you restart the server.
+2) Data Loading from data.sql needs additional configuration
+
+Use this configuration in  application.properties
+
+spring.datasource.url=jdbc:h2:mem:testdb;NON_KEYWORDS=USER
+spring.h2.console.enabled=true
+spring.data.jpa.repositories.bootstrap-mode=default
+spring.jpa.defer-datasource-initialization=true
+
+DEBUGGING GUIDE (If you have problems)
+JPA Hibernate Debugging Guide: https://github.com/in28minutes/in28minutes-initiatives/blob/master/The-in28Minutes-TroubleshootingGuide-And-FAQ/jpa-and-hibernate.md
+Why do we need to configure bootstrap-mode? Details here - https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-2.3-Release-Notes#bootstrapmode-for-jpa-repositories
+Why do we need defer-datasource-initialization? Details here - https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-2.5.0-M3-Release-Notes#hibernate-and-datasql
+
+spring.h2.console.enabled=true
+spring.jpa.show-sql=true
+
+open url: http://localhost:8080/h2-console/
+
+Provide JDBC url: jdbc:h2:mem:testdb;NON_KEYWORDS=USER
+and click connect.
+
+Right click on src/main/resource  ==> create data.sql file
+
+Add below code in src\app\app.constants.ts
+export const TODO_JPA_API_URL = "http://localhost:8080/jpa"
+
+Update src\app\service\data\todo-data.ts
+  
+   retrieveAllTodos(username: string) {
+    //return this.http.get<Todo[]>(`http://localhost:8080/users/${username}/todos`);
+    //return this.http.get<Todo[]>(`${API_URL}/users/${username}/todos`);
+    return this.http.get<Todo[]>(`${TODO_JPA_API_URL}/users/${username}/todos`);  ===> ${username} is coming from src\app\todo\todo.ts and src\app\list-todos\list-todos.ts  which is "mjsingh". This "mjsingh" username should be same in /restful-web-services/src/main/resources/data.sql
+  }
+
+  deleteTodo(username: string, id: number) {
+    //return this.http.delete(`http://localhost:8080/users/${username}/todos/${id}`);
+    // return this.http.delete(`${API_URL}/users/${username}/todos/${id}`);
+    return this.http.delete(`${TODO_JPA_API_URL}/users/${username}/todos/${id}`);
+  }
+
+  retrieveTodo(username: string, id: number) {
+    //return this.http.get<Todo>(`http://localhost:8080/users/${username}/todos/${id}`);
+    //return this.http.get<Todo>(`${API_URL}/users/${username}/todos/${id}`);
+     return this.http.get<Todo>(`${TODO_JPA_API_URL}/users/${username}/todos/${id}`);
+  }
+
+  updateTodo(username: string, id: number, todo: Todo) {
+    //return this.http.put<Todo>(`http://localhost:8080/users/${username}/todos/${id}`, todo);
+    //return this.http.put<Todo>(`${API_URL}/users/${username}/todos/${id}`, todo);
+    return this.http.put<Todo>(`${TODO_JPA_API_URL}/users/${username}/todos/${id}`, todo);
+  }
+
+  createTodo(username: string, todo: Todo) {
+    //return this.http.post<Todo>(`http://localhost:8080/users/${username}/todos`, todo);
+    //return this.http.post<Todo>(`${API_URL}/${username}/todos`, todo);
+    return this.http.post<Todo>(`${TODO_JPA_API_URL}/${username}/todos`, todo);
+  }  
+
+
+Restart frontend and backend both, then try application. Click Logout then click login, then only application will work in my case.
+
+Start from 125
+
+
+ 
+
+
+
+
+
+
+
+	
+	
+

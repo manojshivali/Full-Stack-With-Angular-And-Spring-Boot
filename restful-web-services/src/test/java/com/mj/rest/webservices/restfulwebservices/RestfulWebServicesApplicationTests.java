@@ -1,4 +1,4 @@
-package com.mj.rest.webservices.restful_web_services;
+package com.mj.rest.webservices.restfulwebservices;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
